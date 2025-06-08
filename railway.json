@@ -1,0 +1,12 @@
+# Railway Deployment Configuration
+# Place this file as railway.json in your project root
+
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
