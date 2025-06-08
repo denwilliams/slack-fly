@@ -29,7 +29,7 @@ interface DigestTriggerRequest {
   date?: string;
 }
 
-class MeetingWhispererApp {
+class SlackFlyApp {
   private app: express.Application;
   private server?: Server;
   private isShuttingDown: boolean = false;
@@ -136,7 +136,7 @@ class MeetingWhispererApp {
     // Root endpoint
     this.app.get("/", (req: Request, res: Response) => {
       res.json({
-        name: "Meeting Whisperer",
+        name: "Slack Fly",
         description: "Real-Time Slack Summarizer",
         version: require("../../package.json").version,
         status: "running",
@@ -200,7 +200,7 @@ class MeetingWhispererApp {
 
   async start(): Promise<void> {
     try {
-      console.log("🚀 Starting Meeting Whisperer...");
+      console.log("🚀 Starting Slack Fly...");
 
       // Validate environment
       Helpers.validateEnvironment();
@@ -229,10 +229,10 @@ class MeetingWhispererApp {
         console.log(
           `📺 Watching channels: ${config.digest.watchedChannels.join(", ")}`
         );
-        console.log("✅ Meeting Whisperer is ready!");
+        console.log("✅ Slack Fly is ready!");
       });
     } catch (error) {
-      console.error("❌ Failed to start Meeting Whisperer:", error);
+      console.error("❌ Failed to start Slack Fly:", error);
       process.exit(1);
     }
   }
@@ -240,8 +240,8 @@ class MeetingWhispererApp {
 
 // Start the application
 if (require.main === module) {
-  const app = new MeetingWhispererApp();
+  const app = new SlackFlyApp();
   app.start();
 }
 
-export default MeetingWhispererApp;
+export default SlackFlyApp;

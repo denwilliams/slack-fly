@@ -21,7 +21,7 @@ npm run dev
 ### 1. Create a Slack App
 1. Go to https://api.slack.com/apps
 2. Click "Create New App" → "From scratch"
-3. Name it "Meeting Whisperer" and select your workspace
+3. Name it "Slack Fly" and select your workspace
 
 ### 2. Configure OAuth & Permissions
 Go to "OAuth & Permissions" and add these Bot Token Scopes:
@@ -153,5 +153,5 @@ ngrok http 3000
 ### Debug Mode
 Set environment variable for verbose logging:
 ```bash
-DEBUG=meeting-whisperer:* npm run dev
+DEBUG=slack-fly:* npm run dev
 ```

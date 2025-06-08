@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Setup script for Meeting Whisperer
+ * Setup script for Slack Fly
  * Run this script to validate your environment and test connections
  */
 
@@ -74,7 +74,7 @@ async function validateRedis(): Promise<boolean> {
 }
 
 async function main(): Promise<void> {
-  console.log("🚀 Meeting Whisperer - Environment Setup\n");
+  console.log("🚀 Slack Fly - Environment Setup\n");
 
   try {
     // Check environment file
@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     await validateRedis();
 
     console.log("\n✅ All connections validated successfully!");
-    console.log("\n🎉 Meeting Whisperer is ready to run!");
+    console.log("\n🎉 Slack Fly is ready to run!");
     console.log("\nNext steps:");
     console.log(
       "  1. Make sure your Slack bot is added to the channels you want to monitor"

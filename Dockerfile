@@ -1,5 +1,5 @@
-# Use Node.js 18 LTS
-FROM node:18-alpine
+# Use Node.js 22 LTS
+FROM node:22-alpine
 
 # Set working directory
 WORKDIR /app
@@ -16,11 +16,11 @@ COPY setup.js ./
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
-RUN adduser -S meeting-whisperer -u 1001
+RUN adduser -S slack-fly -u 1001
 
 # Change ownership
-RUN chown -R meeting-whisperer:nodejs /app
-USER meeting-whisperer
+RUN chown -R slack-fly:nodejs /app
+USER slack-fly
 
 # Expose port
 EXPOSE 3000

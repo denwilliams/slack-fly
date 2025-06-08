@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  meeting-whisperer:
+  slack-fly:
     build: .
     ports:
       - "3000:3000"
@@ -16,7 +16,7 @@ services:
     volumes:
       - ./logs:/app/logs
     networks:
-      - meeting-whisperer-network
+      - slack-fly-network
 
   redis:
     image: redis:7-alpine
@@ -27,11 +27,11 @@ services:
       - redis-data:/data
     restart: unless-stopped
     networks:
-      - meeting-whisperer-network
+      - slack-fly-network
 
 volumes:
   redis-data:
 
 networks:
-  meeting-whisperer-network:
+  slack-fly-network:
     driver: bridge

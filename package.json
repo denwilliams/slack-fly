@@ -1,8 +1,11 @@
 {
-  "name": "meeting-whisperer",
+  "name": "slack-fly",
   "version": "1.0.0",
   "description": "Real-Time Slack Summarizer that watches channels and generates daily digests",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "tsc",
     "start": "node -r tsconfig-paths/register dist/index.js",

@@ -1,4 +1,4 @@
-# Meeting Whisperer - Real-Time Slack Summarizer
+# Slack Fly - Real-Time Slack Summarizer
 
 A TypeScript Node.js application that watches designated Slack channels and generates daily digests with summaries, action items, and sentiment analysis using OpenAI API.
 
@@ -16,7 +16,7 @@ A TypeScript Node.js application that watches designated Slack channels and gene
 
 ### Prerequisites
 
-- Node.js (v16 or higher)
+- Node.js (v22 or higher)
 - Redis server
 - Slack App with appropriate permissions
 - OpenAI API key
@@ -79,7 +79,7 @@ npm run type-check
 
 Add the bot to channels you want to monitor:
 ```
-/invite @meeting-whisperer
+/invite @slack-fly
 ```
 
 ### Manual Recap

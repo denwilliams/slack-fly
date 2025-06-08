@@ -1,4 +1,4 @@
-# Meeting Whisperer - Production Deployment Guide
+# Slack Fly - Production Deployment Guide
 
 ## 🚀 Quick Deploy Options
 
@@ -30,7 +30,7 @@ Set environment variables in Railway dashboard:
 ### Option 3: Heroku
 ```bash
 # Install Heroku CLI and create app
-heroku create your-meeting-whisperer
+heroku create your-slack-fly
 heroku addons:create heroku-redis:mini
 
 # Set config vars
@@ -48,8 +48,8 @@ git push heroku main
 docker-compose up -d
 
 # Or build manually
-docker build -t meeting-whisperer .
-docker run -p 3000:3000 --env-file .env meeting-whisperer
+docker build -t slack-fly .
+docker run -p 3000:3000 --env-file .env slack-fly
 ```
 
 ### Option 5: VPS/Cloud Server
@@ -58,7 +58,7 @@ docker run -p 3000:3000 --env-file .env meeting-whisperer
 sudo apt update
 sudo apt install nodejs npm redis-server
 git clone <your-repo>
-cd meeting-whisperer
+cd slack-fly
 npm install --production
 npm start
 ```
@@ -199,7 +199,7 @@ For high-volume workspaces:
 
 ### Debug Mode
 ```bash
-DEBUG=meeting-whisperer:* npm start
+DEBUG=slack-fly:* npm start
 ```
 
 ### Log Analysis

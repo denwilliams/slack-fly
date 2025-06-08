@@ -54,7 +54,7 @@ jest.mock("@slack/web-api", () => ({
 import { summarizerService } from "../src/services/summarizer";
 import type { SlackMessage, DigestParticipant } from "../src/types";
 
-describe("Meeting Whisperer", () => {
+describe("Slack Fly", () => {
   // Mock data for testing
   const mockMessages: SlackMessage[] = [
     {

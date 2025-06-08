@@ -1,4 +1,4 @@
-# 📊 Meeting Whisperer Usage Examples
+# 📊 Slack Fly Usage Examples
 
 ## Getting Started
 
@@ -21,7 +21,7 @@ npm run dev
 ### 2. Add Bot to Slack Channels
 ```bash
 # In your Slack channels, invite the bot:
-/invite @meeting-whisperer
+/invite @slack-fly
 ```
 
 ## 🎯 Usage Examples
@@ -210,14 +210,14 @@ Response:
 
 ### Log Examples
 ```
-🚀 Starting Meeting Whisperer...
+🚀 Starting Slack Fly...
 ✅ Environment variables validated
 ✅ Redis connected successfully
-✅ Slack connected as: meeting-whisperer (Your Workspace)
+✅ Slack connected as: slack-fly (Your Workspace)
 ⏰ Daily digest scheduled: 0 17 * * 1-5
 📺 Watching channels: standup, project-alpha
 🌐 HTTP server running on port 3000
-✅ Meeting Whisperer is ready!
+✅ Slack Fly is ready!
 
 📝 Message received in #standup: Good morning team! Ready for...
 📊 Recap requested by john.doe in #standup

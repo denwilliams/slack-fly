@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Meeting Whisperer CLI Tool
+ * Slack Fly CLI Tool
  * Provides command-line utilities for managing the application
  */
 
@@ -44,8 +44,8 @@ interface ConfigResponse {
 }
 
 program
-  .name("meeting-whisperer")
-  .description("CLI tool for Meeting Whisperer - Slack Summarizer")
+  .name("slack-fly")
+  .description("CLI tool for Slack Fly - Slack Summarizer")
   .version("1.0.0");
 
 program
