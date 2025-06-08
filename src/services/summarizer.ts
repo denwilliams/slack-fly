@@ -139,9 +139,26 @@ class SummarizerService {
         latest
       );
 
-      // Cache the messages
+      // Cache the messages with appropriate expiration
       if (messages.length > 0) {
-        await redisService.storeChannelMessages(channelId, messages, date);
+        const today = new Date().toISOString().split("T")[0];
+        const isToday = date === today;
+
+        // Use shorter cache for incomplete days (1 hour), longer for complete days (24 hours)
+        const cacheExpiration = isToday ? 3600 : 86400; // 1 hour vs 24 hours
+
+        await redisService.storeChannelMessages(
+          channelId,
+          messages,
+          date,
+          cacheExpiration
+        );
+
+        console.log(
+          `💾 Cached messages for ${date} (${
+            isToday ? "1 hour" : "24 hours"
+          } TTL)`
+        );
       }
 
       return messages;

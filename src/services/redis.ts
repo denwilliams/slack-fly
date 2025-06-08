@@ -98,10 +98,11 @@ class RedisService {
   async storeChannelMessages(
     channelId: string,
     messages: SlackMessage[],
-    date: string
+    date: string,
+    expiration: number = 86400 // Default 24 hours
   ): Promise<boolean> {
     const key = `channel:${channelId}:${date}`;
-    return await this.set(key, messages, 86400); // 24 hours expiration
+    return await this.set(key, messages, expiration);
   }
 
   // Get channel messages for a specific date
