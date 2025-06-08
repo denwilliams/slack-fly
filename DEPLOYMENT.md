@@ -42,7 +42,61 @@ heroku config:set OPENAI_API_KEY=sk-...
 git push heroku main
 ```
 
-### Option 4: Docker
+### Option 4: Fly.io
+```bash
+# Install Fly CLI
+curl -L https://fly.io/install.sh | sh
+
+# Login and initialize
+fly auth login
+fly launch
+
+# Set secrets (environment variables)
+fly secrets set SLACK_BOT_TOKEN=xoxb-your-bot-token
+fly secrets set SLACK_SIGNING_SECRET=your-signing-secret
+fly secrets set SLACK_APP_TOKEN=xapp-your-app-token
+fly secrets set OPENAI_API_KEY=sk-your-openai-key
+
+# Add Redis (optional - creates a separate Redis instance)
+fly redis create --name slack-fly-redis
+fly secrets set REDIS_URL=$(fly redis connect --name slack-fly-redis --print-url)
+
+# Deploy
+fly deploy
+```
+
+Create a `fly.toml` configuration file:
+```toml
+app = "your-slack-fly"
+primary_region = "sjc"
+
+[build]
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+[machine]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+```
+
+### Option 5: Docker
 ```bash
 # Build and run with Docker Compose
 docker-compose up -d
@@ -52,7 +106,7 @@ docker build -t slack-fly .
 docker run -p 3000:3000 --env-file .env slack-fly
 ```
 
-### Option 5: VPS/Cloud Server
+### Option 6: VPS/Cloud Server
 ```bash
 # On Ubuntu/Debian server
 sudo apt update
