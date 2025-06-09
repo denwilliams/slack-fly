@@ -2,6 +2,9 @@
 
 A TypeScript Node.js application that watches designated Slack channels and generates daily digests with summaries, action items, and sentiment analysis using OpenAI API.
 
+> [!NOTE]  
+> Part of a set of projects exploring different agentic coding AI tools. Not likely to be maintained but code is free to use if helpful.
+
 ## Features
 
 - 🔍 **Real-time monitoring** of designated Slack channels
