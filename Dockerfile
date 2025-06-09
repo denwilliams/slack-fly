@@ -1,22 +1,31 @@
-# Use Node.js 22 LTS
-FROM node:22-alpine
+# Build stage
+FROM node:24-alpine AS builder
 
-# Set working directory
 WORKDIR /app
+COPY package.json package-lock.json tsconfig.json ./
+# why is npm ci not working?
+RUN npm install
 
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
 COPY src/ ./src/
-COPY setup.js ./
+COPY examples/ ./examples/
+RUN npm run build
+
+# Production stage
+FROM node:24-alpine AS production
+
+WORKDIR /app
+COPY package.json package-lock.json tsconfig.json ./
+
+# Install only production dependencies
+# why is npm ci not working?
+RUN npm install --only=production && npm cache clean --force
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ./dist
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S slack-fly -u 1001
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 slack-fly
 
 # Change ownership
 RUN chown -R slack-fly:nodejs /app
@@ -30,4 +39,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/health || exit 1
 
 # Start application
-CMD ["node", "src/index.js"]
+CMD ["node", "dist/main.js"]
