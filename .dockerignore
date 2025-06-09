@@ -1,0 +1,16 @@
+# flyctl launch added from .gitignore
+**/node_modules
+**/.env
+**/.env.local
+**/.env.production
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/.DS_Store
+**/.vscode
+**/coverage
+**/.nyc_output
+**/dist
+**/build
+fly.toml
