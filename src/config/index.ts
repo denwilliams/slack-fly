@@ -21,7 +21,7 @@ function validateEnvironment(): void {
 // Validate environment on module load
 validateEnvironment();
 
-const config: AppConfig = {
+export const config: AppConfig = {
   slack: {
     botToken: process.env.SLACK_BOT_TOKEN!,
     signingSecret: process.env.SLACK_SIGNING_SECRET!,
@@ -38,6 +38,8 @@ const config: AppConfig = {
   app: {
     port: parseInt(process.env.PORT || "3000"),
     nodeEnv: process.env.NODE_ENV || "development",
+    isProduction: process.env.NODE_ENV === "production",
+    cacheType: (process.env.CACHE_TYPE as "memory" | "redis") || "memory",
   },
   digest: {
     schedule: process.env.DIGEST_SCHEDULE || "0 17 * * 1-5", // 5 PM weekdays
@@ -49,5 +51,3 @@ const config: AppConfig = {
     ),
   },
 };
-
-export default config;

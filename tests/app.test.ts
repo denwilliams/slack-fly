@@ -17,14 +17,19 @@ jest.mock("openai", () => {
   }));
 });
 
-// Mock Redis
-jest.mock("../src/services/redis", () => ({
+// Mock Cache Service
+jest.mock("../src/services/cache", () => ({
   connect: jest.fn(),
   disconnect: jest.fn(),
   isConnected: true,
   set: jest.fn(),
   get: jest.fn(),
   del: jest.fn(),
+  exists: jest.fn(),
+  storeChannelMessages: jest.fn(),
+  getChannelMessages: jest.fn(),
+  storeDigest: jest.fn(),
+  getDigest: jest.fn(),
 }));
 
 // Mock Slack

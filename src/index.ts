@@ -1,19 +1,15 @@
 import "dotenv/config";
 import express, { Request, Response } from "express";
 import { Server } from "http";
-import config from "@/config";
-import slackService from "@/services/slack";
-import redisService from "@/services/redis";
-import { summarizerService } from "@/services/summarizer";
-import schedulerService from "@/utils/scheduler";
-import Helpers from "@/utils/helpers";
+
+import { SummarizerService } from "@/services/summarizer";
+import { SchedulerService } from "./utils/scheduler";
 
 interface HealthResponse {
   status: string;
   timestamp: string;
   uptime: number;
   version: string;
-  redis: boolean;
   tasks: Record<string, any>;
 }
 
@@ -29,12 +25,32 @@ interface DigestTriggerRequest {
   date?: string;
 }
 
-class SlackFlyApp {
+export class SlackFlyApp {
   private app: express.Application;
   private server?: Server;
-  private isShuttingDown: boolean = false;
 
-  constructor() {
+  constructor(
+    private readonly summarizerService: SummarizerService,
+    private readonly schedulerService: Pick<
+      SchedulerService,
+      | "getTaskStatus"
+      | "triggerDailyDigest"
+      | "scheduleDigestGeneration"
+      | "scheduleWeeklySummary"
+      | "scheduleHealthCheck"
+    >,
+    private readonly config: {
+      digest: {
+        watchedChannels: string[];
+        schedule: string;
+        maxMessagesPerDigest: number;
+      };
+      app: {
+        port: number;
+        nodeEnv: string;
+      };
+    }
+  ) {
     this.app = express();
 
     // Middleware
@@ -42,7 +58,6 @@ class SlackFlyApp {
     this.app.use(express.urlencoded({ extended: true }));
 
     this.setupRoutes();
-    this.setupGracefulShutdown();
   }
 
   private setupRoutes(): void {
@@ -53,8 +68,7 @@ class SlackFlyApp {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         version: require("../../package.json").version,
-        redis: redisService.isConnected,
-        tasks: schedulerService.getTaskStatus(),
+        tasks: this.schedulerService.getTaskStatus(),
       });
     });
 
@@ -68,13 +82,15 @@ class SlackFlyApp {
         try {
           const { channel, date } = req.body;
           if (channel) {
-            const digest = await summarizerService.generateDailyDigest(
+            const digest = await this.summarizerService.generateDailyDigest(
               channel,
               date || null
             );
             res.json({ success: true, data: digest });
           } else {
-            await schedulerService.triggerDailyDigest(summarizerService);
+            await this.schedulerService.triggerDailyDigest(
+              this.summarizerService
+            );
             res.json({
               success: true,
               message: "Daily digest generation triggered for all channels",
@@ -107,7 +123,7 @@ class SlackFlyApp {
             return;
           }
 
-          const digests = await summarizerService.getDigestHistory(
+          const digests = await this.summarizerService.getDigestHistory(
             channel,
             parseInt(days as string)
           );
@@ -126,10 +142,10 @@ class SlackFlyApp {
     // Configuration endpoint
     this.app.get("/api/config", (req: Request, res: Response) => {
       res.json({
-        watchedChannels: config.digest.watchedChannels,
-        schedule: config.digest.schedule,
-        maxMessages: config.digest.maxMessagesPerDigest,
-        environment: config.app.nodeEnv,
+        watchedChannels: this.config.digest.watchedChannels,
+        schedule: this.config.digest.schedule,
+        maxMessages: this.config.digest.maxMessagesPerDigest,
+        environment: this.config.app.nodeEnv,
       });
     });
 
@@ -150,98 +166,24 @@ class SlackFlyApp {
     });
   }
 
-  private setupGracefulShutdown(): void {
-    const shutdown = async (signal: string) => {
-      if (this.isShuttingDown) return;
-
-      console.log(`\n🛑 Received ${signal}. Starting graceful shutdown...`);
-      this.isShuttingDown = true;
-
-      try {
-        // Stop scheduled tasks
-        schedulerService.stopAllTasks();
-
-        // Stop Slack service
-        await slackService.stop();
-
-        // Disconnect from Redis
-        await redisService.disconnect();
-
-        // Close Express server
-        if (this.server) {
-          this.server.close(() => {
-            console.log("✅ HTTP server closed");
-          });
-        }
-
-        console.log("✅ Graceful shutdown completed");
-        process.exit(0);
-      } catch (error) {
-        console.error("❌ Error during shutdown:", error);
-        process.exit(1);
-      }
-    };
-
-    // Handle shutdown signals
-    process.on("SIGTERM", () => shutdown("SIGTERM"));
-    process.on("SIGINT", () => shutdown("SIGINT"));
-
-    // Handle uncaught exceptions
-    process.on("uncaughtException", (error) => {
-      console.error("❌ Uncaught Exception:", error);
-      shutdown("UNCAUGHT_EXCEPTION");
-    });
-
-    process.on("unhandledRejection", (reason, promise) => {
-      console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
-      shutdown("UNHANDLED_REJECTION");
+  async start(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      // Start HTTP server
+      this.server = this.app.listen(this.config.app.port, () => {
+        console.log(`🌐 HTTP server running on port ${this.config.app.port}`);
+        resolve();
+      });
     });
   }
 
-  async start(): Promise<void> {
-    try {
-      console.log("🚀 Starting Slack Fly...");
-
-      // Validate environment
-      Helpers.validateEnvironment();
-
-      // Connect to Redis
-      await redisService.connect();
-
-      // Start Slack service
-      await slackService.start();
-
-      // Schedule digest generation
-      schedulerService.scheduleDigestGeneration(summarizerService);
-
-      // Optional: Schedule weekly summary
-      if (config.app.nodeEnv === "production") {
-        schedulerService.scheduleWeeklySummary(summarizerService);
-      }
-
-      // Schedule health checks
-      schedulerService.scheduleHealthCheck();
-
-      // Start HTTP server
-      this.server = this.app.listen(config.app.port, () => {
-        console.log(`🌐 HTTP server running on port ${config.app.port}`);
-        console.log(`📊 Daily digest schedule: ${config.digest.schedule}`);
-        console.log(
-          `📺 Watching channels: ${config.digest.watchedChannels.join(", ")}`
-        );
-        console.log("✅ Slack Fly is ready!");
+  async stop(): Promise<void> {
+    if (this.server) {
+      return new Promise<void>((resolve) => {
+        this.server?.close(() => {
+          console.log("✅ HTTP server closed");
+          resolve();
+        });
       });
-    } catch (error) {
-      console.error("❌ Failed to start Slack Fly:", error);
-      process.exit(1);
     }
   }
 }
-
-// Start the application
-if (require.main === module) {
-  const app = new SlackFlyApp();
-  app.start();
-}
-
-export default SlackFlyApp;

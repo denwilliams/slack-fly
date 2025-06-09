@@ -1,11 +1,30 @@
-import openaiService from "@/services/openai";
-import slackService from "@/services/slack";
-import redisService from "@/services/redis";
-import config from "@/config";
 import type { SlackMessage, ChannelDigest, DigestParticipant } from "@/types";
+import { ICacheService } from "@/services/cache.interface";
+import { OpenAIService } from "@/services/openai";
+import { SlackService } from "@/services/slack";
 
-class SummarizerService {
+export class SummarizerService {
   private isProcessing: boolean = false;
+
+  constructor(
+    private readonly cacheService: ICacheService,
+    private readonly slackService: Pick<
+      SlackService,
+      | "getChannelIdByName"
+      | "sendDailyDigest"
+      | "setRecapCommandHandler"
+      | "fetchMessagesInRange"
+    >,
+    private readonly openaiService: Pick<
+      OpenAIService,
+      "generateSummary" | "generateQuickRecap"
+    >,
+    private readonly config: {
+      digest: { watchedChannels: string[] };
+    }
+  ) {
+    this.slackService.setRecapCommandHandler(this);
+  }
 
   async generateDailyDigest(
     channelName: string,
@@ -25,13 +44,16 @@ class SummarizerService {
       );
 
       // Check if digest already exists in cache
-      const channelId = await slackService.getChannelIdByName(channelName);
+      const channelId = await this.slackService.getChannelIdByName(channelName);
       if (!channelId) {
         console.log(`❌ Channel #${channelName} not found`);
         return null;
       }
 
-      const cachedDigest = await redisService.getDigest(channelId, targetDate);
+      const cachedDigest = await this.cacheService.getDigest(
+        channelId,
+        targetDate
+      );
       if (cachedDigest) {
         console.log(`✅ Using cached digest for #${channelName}`);
         return cachedDigest;
@@ -52,7 +74,7 @@ class SummarizerService {
       );
 
       // Generate summary using OpenAI
-      const summary = await openaiService.generateSummary(
+      const summary = await this.openaiService.generateSummary(
         messages,
         channelName
       );
@@ -68,7 +90,7 @@ class SummarizerService {
       };
 
       // Cache the digest
-      await redisService.storeDigest(channelId, targetDate, digest);
+      await this.cacheService.storeDigest(channelId, targetDate, digest);
 
       console.log(`✅ Daily digest generated for #${channelName}`);
       return digest;
@@ -94,7 +116,7 @@ class SummarizerService {
         return "📭 No recent messages found in this channel.";
       }
 
-      const recap = await openaiService.generateQuickRecap(
+      const recap = await this.openaiService.generateQuickRecap(
         messages,
         channelName
       );
@@ -116,7 +138,7 @@ class SummarizerService {
   ): Promise<SlackMessage[]> {
     try {
       // Check cache first
-      const cachedMessages = await redisService.getChannelMessages(
+      const cachedMessages = await this.cacheService.getChannelMessages(
         channelId,
         date
       );
@@ -133,7 +155,7 @@ class SummarizerService {
       const latest = Math.floor(endOfDay.getTime() / 1000);
 
       // Fetch messages from Slack
-      const messages = await this.fetchMessagesInRange(
+      const messages = await this.slackService.fetchMessagesInRange(
         channelId,
         oldest,
         latest
@@ -147,7 +169,7 @@ class SummarizerService {
         // Use shorter cache for incomplete days (1 hour), longer for complete days (24 hours)
         const cacheExpiration = isToday ? 3600 : 86400; // 1 hour vs 24 hours
 
-        await redisService.storeChannelMessages(
+        await this.cacheService.storeChannelMessages(
           channelId,
           messages,
           date,
@@ -168,78 +190,78 @@ class SummarizerService {
     }
   }
 
-  private async fetchMessagesInRange(
-    channelId: string,
-    oldest: number,
-    latest: number
-  ): Promise<SlackMessage[]> {
-    try {
-      const allMessages: any[] = [];
-      let cursor: string | undefined = undefined;
-      let hasMore = true;
+  // private async fetchMessagesInRange(
+  //   channelId: string,
+  //   oldest: number,
+  //   latest: number
+  // ): Promise<SlackMessage[]> {
+  //   try {
+  //     const allMessages: any[] = [];
+  //     let cursor: string | undefined = undefined;
+  //     let hasMore = true;
 
-      while (
-        hasMore &&
-        allMessages.length < config.digest.maxMessagesPerDigest
-      ) {
-        const params: any = {
-          channel: channelId,
-          oldest: oldest.toString(),
-          latest: latest.toString(),
-          inclusive: true,
-          limit: 200,
-        };
+  //     while (
+  //       hasMore &&
+  //       allMessages.length < this.config.digest.maxMessagesPerDigest
+  //     ) {
+  //       const params: any = {
+  //         channel: channelId,
+  //         oldest: oldest.toString(),
+  //         latest: latest.toString(),
+  //         inclusive: true,
+  //         limit: 200,
+  //       };
 
-        if (cursor) {
-          params.cursor = cursor;
-        }
+  //       if (cursor) {
+  //         params.cursor = cursor;
+  //       }
 
-        // Access the Slack client directly from slackService
-        const slackClient = (slackService as any).client;
-        const result = await slackClient.conversations.history(params);
+  //       // Access the Slack client directly from slackService
+  //       const slackClient = (slackService as any).client;
+  //       const result = await slackClient.conversations.history(params);
 
-        if (!result.ok) {
-          throw new Error(`Slack API error: ${result.error}`);
-        }
+  //       if (!result.ok) {
+  //         throw new Error(`Slack API error: ${result.error}`);
+  //       }
 
-        // Filter and process messages
-        const filteredMessages = result.messages
-          .filter(
-            (msg: any) => !msg.bot_id && msg.type === "message" && msg.text
-          )
-          .map((msg: any) => ({
-            ts: msg.ts,
-            user: msg.user,
-            text: msg.text,
-            thread_ts: msg.thread_ts,
-          }));
+  //       // Filter and process messages
+  //       const filteredMessages = result.messages
+  //         .filter(
+  //           (msg: any) => !msg.bot_id && msg.type === "message" && msg.text
+  //         )
+  //         .map((msg: any) => ({
+  //           ts: msg.ts,
+  //           user: msg.user,
+  //           text: msg.text,
+  //           thread_ts: msg.thread_ts,
+  //         }));
 
-        allMessages.push(...filteredMessages);
+  //       allMessages.push(...filteredMessages);
 
-        hasMore = result.has_more;
-        cursor = result.response_metadata?.next_cursor;
-      }
+  //       hasMore = result.has_more;
+  //       cursor = result.response_metadata?.next_cursor;
+  //     }
 
-      // Enrich with user names and sort chronologically
-      const enrichedMessages = await this.enrichMessagesWithUserNames(
-        allMessages
-      );
-      return enrichedMessages.sort(
-        (a, b) => parseFloat(a.ts) - parseFloat(b.ts)
-      );
-    } catch (error) {
-      console.error("Error fetching messages in range:", error);
-      return [];
-    }
-  }
+  //     // Enrich with user names and sort chronologically
+  //     const enrichedMessages = await this.enrichMessagesWithUserNames(
+  //       allMessages
+  //     );
+  //     return enrichedMessages.sort(
+  //       (a, b) => parseFloat(a.ts) - parseFloat(b.ts)
+  //     );
+  //   } catch (error) {
+  //     console.error("Error fetching messages in range:", error);
+  //     return [];
+  //   }
+  // }
 
-  private async enrichMessagesWithUserNames(
-    messages: Omit<SlackMessage, "user">[]
-  ): Promise<SlackMessage[]> {
-    // For now, we'll use the slack service method
-    // In a real implementation, we might want to extract this logic
-    return messages as SlackMessage[]; // Temporary cast - should be properly implemented
-  }
+  // private async enrichMessagesWithUserNames(
+  //   messages: Omit<SlackMessage, "user">[]
+  // ): Promise<SlackMessage[]> {
+  //   // For now, we'll use the slack service method
+  //   // In a real implementation, we might want to extract this logic
+  //   return messages as SlackMessage[]; // Temporary cast - should be properly implemented
+  // }
 
   private extractParticipants(messages: SlackMessage[]): DigestParticipant[] {
     const participants: Record<string, number> = {};
@@ -261,27 +283,31 @@ class SummarizerService {
   async generateAndSendDailyDigests(): Promise<void> {
     console.log("🌅 Starting daily digest generation...");
 
-    const promises = config.digest.watchedChannels.map(async (channelName) => {
-      try {
-        const digest = await this.generateDailyDigest(channelName);
+    const promises = this.config.digest.watchedChannels.map(
+      async (channelName) => {
+        try {
+          const digest = await this.generateDailyDigest(channelName);
 
-        if (digest) {
-          const channelId = await slackService.getChannelIdByName(channelName);
-          if (channelId) {
-            await slackService.sendDailyDigest(
-              channelId,
-              digest.summary,
+          if (digest) {
+            const channelId = await this.slackService.getChannelIdByName(
               channelName
             );
+            if (channelId) {
+              await this.slackService.sendDailyDigest(
+                channelId,
+                digest.summary,
+                channelName
+              );
+            }
           }
+        } catch (error) {
+          console.error(
+            `❌ Failed to generate digest for #${channelName}:`,
+            error
+          );
         }
-      } catch (error) {
-        console.error(
-          `❌ Failed to generate digest for #${channelName}:`,
-          error
-        );
       }
-    });
+    );
 
     await Promise.all(promises);
     console.log("✅ Daily digest generation completed");
@@ -292,7 +318,7 @@ class SummarizerService {
     days: number = 7
   ): Promise<ChannelDigest[]> {
     try {
-      const channelId = await slackService.getChannelIdByName(channelName);
+      const channelId = await this.slackService.getChannelIdByName(channelName);
       if (!channelId) return [];
 
       const digests: ChannelDigest[] = [];
@@ -301,7 +327,7 @@ class SummarizerService {
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split("T")[0]!;
 
-        const digest = await redisService.getDigest(channelId, dateStr);
+        const digest = await this.cacheService.getDigest(channelId, dateStr);
         if (digest) {
           digests.push(digest);
         }
@@ -316,7 +342,3 @@ class SummarizerService {
     }
   }
 }
-
-const summarizerService = new SummarizerService();
-
-export { summarizerService };

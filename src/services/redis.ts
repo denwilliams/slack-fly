@@ -1,15 +1,17 @@
 import { createClient, RedisClientType } from "redis";
-import config from "@/config";
 import { ChannelDigest, SlackMessage } from "@/types";
+import { ICacheService } from "./cache.interface";
 
-class RedisService {
+export class RedisService implements ICacheService {
   private client: RedisClientType | null = null;
   public isConnected: boolean = false;
+
+  constructor(private readonly config: { redis: { url: string } }) {}
 
   async connect(): Promise<void> {
     try {
       this.client = createClient({
-        url: config.redis.url,
+        url: this.config.redis.url,
       });
 
       this.client.on("error", (err: Error) => {
@@ -133,5 +135,3 @@ class RedisService {
     return await this.get<ChannelDigest>(key);
   }
 }
-
-export default new RedisService();

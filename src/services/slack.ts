@@ -1,18 +1,32 @@
 import { App } from "@slack/bolt";
 import { WebClient } from "@slack/web-api";
-import config from "@/config";
+
 import type {
   SlackMessage,
   SlackMessageRaw,
   SlackChannelInfo,
   SlackUserInfo,
 } from "@/types";
+import type { SummarizerService } from "@/services/summarizer";
 
-class SlackService {
+export class SlackService {
   private app: App;
   private client: WebClient;
+  private recapHandler?: Pick<SummarizerService, "generateQuickRecap">;
 
-  constructor() {
+  constructor(
+    private readonly config: {
+      slack: {
+        botToken: string;
+        signingSecret: string;
+        appToken: string;
+      };
+      digest: {
+        watchedChannels: string[];
+        maxMessagesPerDigest: number;
+      };
+    }
+  ) {
     this.app = new App({
       token: config.slack.botToken,
       signingSecret: config.slack.signingSecret,
@@ -40,7 +54,7 @@ class SlackService {
 
         const channel = channelInfo.channel as SlackChannelInfo;
 
-        if (config.digest.watchedChannels.includes(channel.name)) {
+        if (this.config.digest.watchedChannels.includes(channel.name)) {
           const messageText = (message as any).text;
           console.log(
             `📝 Message received in #${channel.name}: ${messageText?.substring(
@@ -70,12 +84,24 @@ class SlackService {
     });
   }
 
+  public setRecapCommandHandler(
+    handler: Pick<SummarizerService, "generateQuickRecap">
+  ): void {
+    this.recapHandler = handler;
+  }
+
   private setupCommands(): void {
     // /recap command for instant summaries
     this.app.command("/recap", async ({ command, ack, respond }) => {
       await ack();
 
       try {
+        if (!this.recapHandler) {
+          throw new Error(
+            "Recap handler not set. Please set it using setRecapCommandHandler."
+          );
+        }
+
         console.log(
           `📊 Recap requested by ${command.user_name} in #${command.channel_name}`
         );
@@ -97,8 +123,7 @@ class SlackService {
         }
 
         // This will be handled by the summarizer service
-        const { summarizerService } = await import("./summarizer");
-        const recap = await summarizerService.generateQuickRecap(
+        const recap = await this.recapHandler.generateQuickRecap(
           messages,
           command.channel_name
         );
@@ -178,6 +203,70 @@ class SlackService {
       return enrichedMessages;
     } catch (error) {
       console.error("Error fetching channel messages:", error);
+      return [];
+    }
+  }
+
+  // why has AI generated this function, seems similar to getChannelMessages?
+  async fetchMessagesInRange(
+    channelId: string,
+    oldest: number,
+    latest: number
+  ): Promise<SlackMessage[]> {
+    try {
+      const allMessages: any[] = [];
+      let cursor: string | undefined = undefined;
+      let hasMore = true;
+
+      while (
+        hasMore &&
+        allMessages.length < this.config.digest.maxMessagesPerDigest
+      ) {
+        const params: any = {
+          channel: channelId,
+          oldest: oldest.toString(),
+          latest: latest.toString(),
+          inclusive: true,
+          limit: 200,
+        };
+
+        if (cursor) {
+          params.cursor = cursor;
+        }
+
+        const result = await this.client.conversations.history(params);
+
+        if (!result.ok || !result.messages) {
+          throw new Error(`Slack API error: ${result.error}`);
+        }
+
+        // Filter and process messages
+        const filteredMessages = result.messages
+          .filter(
+            (msg: any) => !msg.bot_id && msg.type === "message" && msg.text
+          )
+          .map((msg: any) => ({
+            ts: msg.ts,
+            user: msg.user,
+            text: msg.text,
+            thread_ts: msg.thread_ts,
+          }));
+
+        allMessages.push(...filteredMessages);
+
+        if (result.has_more !== undefined) hasMore = result.has_more;
+        cursor = result.response_metadata?.next_cursor;
+      }
+
+      // Enrich with user names and sort chronologically
+      const enrichedMessages = await this.enrichMessagesWithUserNames(
+        allMessages
+      );
+      return enrichedMessages.sort(
+        (a, b) => parseFloat(a.ts) - parseFloat(b.ts)
+      );
+    } catch (error) {
+      console.error("Error fetching messages in range:", error);
       return [];
     }
   }
@@ -321,5 +410,3 @@ class SlackService {
     }
   }
 }
-
-export default new SlackService();

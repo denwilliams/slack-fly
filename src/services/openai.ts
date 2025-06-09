@@ -1,11 +1,14 @@
 import OpenAI from "openai";
-import config from "@/config";
 import { SlackMessage } from "@/types";
 
-class OpenAIService {
+export class OpenAIService {
   private client: OpenAI;
 
-  constructor() {
+  constructor(
+    private readonly config: {
+      openai: { apiKey: string; model: string; maxTokens: number };
+    }
+  ) {
     this.client = new OpenAI({
       apiKey: config.openai.apiKey,
     });
@@ -54,7 +57,7 @@ ${messagesText}
 Please format your response in clear sections using markdown formatting.`;
 
       const completion = await this.client.chat.completions.create({
-        model: config.openai.model,
+        model: this.config.openai.model,
         messages: [
           {
             role: "system",
@@ -66,7 +69,7 @@ Please format your response in clear sections using markdown formatting.`;
             content: prompt,
           },
         ],
-        max_tokens: config.openai.maxTokens,
+        max_tokens: this.config.openai.maxTokens,
         temperature: 0.3,
       });
 
@@ -117,7 +120,7 @@ Messages:
 ${messagesText}`;
 
       const completion = await this.client.chat.completions.create({
-        model: config.openai.model,
+        model: this.config.openai.model,
         messages: [
           {
             role: "system",
@@ -184,5 +187,3 @@ ${messagesText}`;
     }
   }
 }
-
-export default new OpenAIService();

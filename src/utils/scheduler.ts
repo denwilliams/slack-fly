@@ -1,5 +1,4 @@
 import * as cron from "node-cron";
-import config from "@/config";
 import type { SummarizerService } from "@/types";
 
 interface TaskStatus {
@@ -11,14 +10,23 @@ interface SchedulerStatus {
   [taskName: string]: TaskStatus;
 }
 
-class SchedulerService {
+export class SchedulerService {
   private tasks: Map<string, cron.ScheduledTask> = new Map();
+
+  constructor(
+    private readonly config: {
+      digest: {
+        schedule: string;
+        watchedChannels: string[];
+      };
+    }
+  ) {}
 
   scheduleDigestGeneration(
     summarizerService: SummarizerService
   ): cron.ScheduledTask {
     const task = cron.schedule(
-      config.digest.schedule,
+      this.config.digest.schedule,
       async () => {
         console.log("⏰ Scheduled daily digest generation triggered");
         try {
@@ -38,9 +46,9 @@ class SchedulerService {
     // Start the task
     task.start();
 
-    console.log(`⏰ Daily digest scheduled: ${config.digest.schedule}`);
+    console.log(`⏰ Daily digest scheduled: ${this.config.digest.schedule}`);
     console.log(
-      `📺 Watching channels: ${config.digest.watchedChannels.join(", ")}`
+      `📺 Watching channels: ${this.config.digest.watchedChannels.join(", ")}`
     );
 
     return task;
@@ -56,7 +64,7 @@ class SchedulerService {
         // Friday 5 PM
         console.log("📊 Generating weekly summary...");
         try {
-          for (const channelName of config.digest.watchedChannels) {
+          for (const channelName of this.config.digest.watchedChannels) {
             const digests = await summarizerService.getDigestHistory(
               channelName,
               7
@@ -141,5 +149,3 @@ class SchedulerService {
     }
   }
 }
-
-export default new SchedulerService();

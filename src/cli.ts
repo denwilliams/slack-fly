@@ -8,6 +8,7 @@
 import { program } from "commander";
 import axios from "axios";
 import "dotenv/config";
+import { setup } from "./setup";
 
 const API_BASE = process.env.API_BASE || "http://localhost:3000";
 
@@ -160,7 +161,7 @@ program
     try {
       console.log("🔧 Running setup validation...");
       // Dynamic import for setup module
-      await import("./setup.js");
+      await setup();
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";

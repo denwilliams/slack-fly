@@ -18,7 +18,7 @@ interface RateLimiter {
   getRemainingRequests: (key: string) => number;
 }
 
-class Helpers {
+export class Helpers {
   // Format timestamp to readable date/time
   static formatTimestamp(timestamp: string): FormattedTimestamp {
     const date = new Date(parseFloat(timestamp) * 1000);
@@ -273,5 +273,3 @@ class Helpers {
     throw lastError!;
   }
 }
-
-export default Helpers;

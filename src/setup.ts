@@ -6,10 +6,11 @@
  */
 
 import "dotenv/config";
-import redisService from "@/services/redis";
 import { WebClient } from "@slack/web-api";
 import OpenAI from "openai";
-import * as fs from "fs";
+import * as fs from "node:fs";
+import { config } from "@/config";
+import { RedisService } from "@/services/redis";
 
 async function validateSlackConnection(): Promise<boolean> {
   console.log("🔍 Testing Slack connection...");
@@ -51,20 +52,21 @@ async function validateOpenAI(): Promise<boolean> {
   }
 }
 
-async function validateRedis(): Promise<boolean> {
-  console.log("🔍 Testing Redis connection...");
+async function validateRedis(): Promise<RedisService> {
+  console.log("🔍 Testing cache service connection...");
+  const cacheService = new RedisService(config);
 
   try {
-    await redisService.connect();
-    await redisService.set("test-key", "test-value", 10);
-    const value = await redisService.get<string>("test-key");
+    await cacheService.connect();
+    await cacheService.set("test-key", "test-value", 10);
+    const value = await cacheService.get<string>("test-key");
 
     if (value === "test-value") {
-      console.log("✅ Redis connected and working");
-      await redisService.del("test-key");
-      return true;
+      console.log("✅ Cache service connected and working");
+      await cacheService.del("test-key");
+      return cacheService;
     } else {
-      throw new Error("Redis read/write test failed");
+      throw new Error("Cache service read/write test failed");
     }
   } catch (error) {
     const errorMessage =
@@ -73,8 +75,9 @@ async function validateRedis(): Promise<boolean> {
   }
 }
 
-async function main(): Promise<void> {
+export async function setup(): Promise<void> {
   console.log("🚀 Slack Fly - Environment Setup\n");
+  let cacheService: RedisService | undefined;
 
   try {
     // Check environment file
@@ -88,10 +91,12 @@ async function main(): Promise<void> {
     // Validate all connections
     await validateSlackConnection();
     await validateOpenAI();
-    await validateRedis();
+    if (config.redis.url) {
+      cacheService = await validateRedis();
+    }
 
     console.log("\n✅ All connections validated successfully!");
-    console.log("\n🎉 Slack Fly is ready to run!");
+    console.log("\n🪰 Slack Fly is ready to run!");
     console.log("\nNext steps:");
     console.log(
       "  1. Make sure your Slack bot is added to the channels you want to monitor"
@@ -107,14 +112,8 @@ async function main(): Promise<void> {
     console.log("\nPlease check your .env configuration and try again.");
     process.exit(1);
   } finally {
-    if (redisService.isConnected) {
-      await redisService.disconnect();
+    if (cacheService?.isConnected) {
+      await cacheService.disconnect();
     }
   }
 }
-
-if (require.main === module) {
-  main();
-}
-
-export { validateSlackConnection, validateOpenAI, validateRedis };

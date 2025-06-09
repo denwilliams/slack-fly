@@ -25,6 +25,8 @@ export interface RedisConfig {
 export interface ApplicationConfig {
   port: number;
   nodeEnv: string;
+  isProduction: boolean;
+  cacheType: "memory" | "redis";
 }
 
 export interface DigestConfig {
