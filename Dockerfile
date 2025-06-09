@@ -14,7 +14,7 @@ RUN npm run build
 FROM node:24-alpine AS production
 
 WORKDIR /app
-COPY package.json package-lock.json tsconfig.json ./
+COPY package.json package-lock.json tsconfig.production.json ./
 
 # Install only production dependencies
 # why is npm ci not working?
@@ -38,5 +38,8 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/health || exit 1
 
+# Use production tsconfig for path resolution
+ENV TS_NODE_PROJECT=tsconfig.production.json
+
 # Start application
-CMD ["node", "dist/main.js"]
+CMD ["node", "-r", "tsconfig-paths/register", "dist/main.js"]

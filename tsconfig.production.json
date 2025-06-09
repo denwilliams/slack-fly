@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["./dist/*"],
+      "@/config/*": ["./dist/config/*"],
+      "@/services/*": ["./dist/services/*"],
+      "@/utils/*": ["./dist/utils/*"],
+      "@/types/*": ["./dist/types/*"]
+    },
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  }
+}
